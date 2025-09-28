@@ -64,3 +64,10 @@ def is_unitary(U, tol=1e-10):
     
     U_dag = U.getH()
     return is_close_to_identity(U @ U_dag, tol) and is_close_to_identity(U_dag @ U, tol)
+
+def mat_norm(mat_op):
+    """
+    Return Frobenius norm of sparse_op
+
+    """
+    return np.linalg.norm(mat_op, ord='fro')

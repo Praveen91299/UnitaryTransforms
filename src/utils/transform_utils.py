@@ -2,7 +2,9 @@
 import numpy as np
 from openfermion import FermionOperator, commutator, normal_ordered, jordan_wigner, QubitOperator, count_qubits, get_sparse_operator
 from itertools import combinations
-from src.utils.mat_utils import is_hermitian
+from src.utils.mat_utils import is_hermitian, mat_norm
+from src.utils.op_utils import op_norm
+from copy import deepcopy
 
 def get_poly_coeff(roots):
     """
@@ -86,10 +88,11 @@ def construct_projectors(G, n_qubits, tol = 1e-10):
     """
 
     tol_dec = - int(np.log10(tol))
+    G_sparse = get_sparse_operator(G, n_qubits)
 
-    assert is_hermitian(get_sparse_operator(G, n_qubits)), "Operator not hermitian! Hermiticity required for constructing orthogonal projectors."
+    assert is_hermitian(G_sparse), "Operator not hermitian! Hermiticity required for constructing orthogonal projectors."
 
-    eigenvalues, eigenvectors = np.linalg.eigh(get_sparse_operator(G, n_qubits).toarray())
+    eigenvalues, eigenvectors = np.linalg.eigh(G_sparse.toarray())
 
     projectors = []
     eig_unique = np.sort(list(set(np.around(eigenvalues, tol_dec))))
@@ -113,7 +116,7 @@ def construct_projectors(G, n_qubits, tol = 1e-10):
     assert np.isclose(np.linalg.norm(sum(projectors) - np.identity(1<<n_qubits), 'fro'), 0, atol=tol), f"{np.linalg.norm(sum(projectors) - np.identity(1<<n_qubits))}"
     
     for i, p in enumerate(projectors):
-        assert (np.isclose(np.linalg.norm(get_sparse_operator(G, n_qubits) @ p - eig_unique[i]*p, 'fro'), 0, atol=tol)), "Projector yielding incorrect magnitude of eigen value."
+        assert (np.isclose(np.linalg.norm(G_sparse @ p - eig_unique[i]*p, 'fro'), 0, atol=tol)), "Projector yielding incorrect magnitude of eigen value."
 
     return projectors, eig_unique, e_vecs
 
@@ -142,9 +145,43 @@ def get_block_norms(H, projectors, silent = True, tol=1e-10):
     
     return blocks, block_norms
 
+def get_powers(G, degree):
+    powers = []
+
+    powers.append(1.0)
+    for i in range(degree):
+        powers.append(G*powers[-1])
+    
+    return powers
+
+def get_differences(vals):
+    differences = []
+
+    _ = [[differences.append(v1 - v2) for v1 in vals] for v2 in vals]
+    return list(set(differences))
+
+def construct_projector_ops(G, eig):
+    """
+    Construct projectors as power of G
+
+    """
+    V = get_vander(eig)
+    L = len(eig)
+    powers = get_powers(G, L-1)
+    V_inv =  np.linalg.inv(V)
+
+    P = []
+    for i in range(len(eig)):
+        coeffs = V_inv[:, i]
+
+        P.append(sum([c*Gk for c, Gk in zip(coeffs, powers)]))
+    
+    return P
+
 def get_S(G, H, verbose=True, tol=1e-5):
     """
     Returns set of eigenvalues of G and set S of eigenvalue differences over non-vanishing projector blocks
+    GETS S BY BRUTE FORCE
 
     G, H : FermionOperators/QubitOperators
 
@@ -180,3 +217,58 @@ def get_S(G, H, verbose=True, tol=1e-5):
     if verbose: print("Found {} unique eigenvalue differences over non-vanishing blocks:\n(maximum possible differences: {}) \n{}".format(len(S), max_eig_diff_count, S))
 
     return e_vals, S
+
+def find_S_commutators(G, H, verbose =True, tol=1e-5):
+    """
+    Returns S by evaluating commutators
+
+    """
+    #get projectors and eigenvalues
+    _, eig, _ = construct_projectors(G, count_qubits(G))
+
+    #build Delta
+    Delta = get_differences(eig)
+    G_pauli = jordan_wigner(G)
+    H_pauli = jordan_wigner(H)
+    commutators = get_commutators(G_pauli, H_pauli, len(Delta))
+    coeff = get_poly_coeff(Delta)
+
+    S = []
+    for d in Delta:
+        Delta_d = deepcopy(Delta)
+        Delta_d.remove(d)
+
+        coeffs = get_poly_coeff(Delta_d)
+
+        fh = np.sum([c*t for c, t in zip(coeffs, commutators)])
+
+        if op_norm(fh) > tol:
+            S.append(d)
+    
+    return S
+
+def find_S_blocks(G, H, verbose=True, tol=1e-5):
+    """
+    Returns S by evaluating projected blocks
+
+    """
+    #get projectors and eigenvalues - ideally would be known prior or of low dimension G compared to H making it feasible
+    _, eig, _ = construct_projectors(G, count_qubits(G))
+
+    #build Delta
+    G_pauli = jordan_wigner(G)
+    H_pauli = jordan_wigner(H)
+    P_list = construct_projector_ops(G_pauli, eig)
+
+    differences = []
+    for e1, P1 in zip(eig, P_list):
+        for e2, P2 in zip(eig, P_list):
+            diff = e1 - e2
+
+            if diff not in differences: #check only if not in the list
+                pHp = P1*H_pauli*P2
+                if op_norm(pHp) > tol:
+                    differences.append(e1 - e2)
+    
+    S = list(set(differences))
+    return S

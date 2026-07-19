@@ -5,3 +5,5 @@ Codes to perform and test unitary transformations based on generator eigenspectr
 See `samples.ipynb` for examples listed in Table 1.  
 
 Python based, requires openfermion and standard python libraries: numpy, scipy, copy, itertools.
+
+- term_growth.py - transform H4, 1A, sto-3g by random UCC type generators

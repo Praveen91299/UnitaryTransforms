@@ -1,0 +1,47 @@
+MOLECULE
+hydrogen_chain_spacing_angstrom = 1.0
+number_of_hydrogen_atoms = 4
+basis_name = sto-3g
+multiplicity = 1
+charge = 0
+number_of_qubits = 8
+
+EXPERIMENT
+random_seed = 0
+number_of_trials = 10
+transformations_per_trial = 10
+sample_with_replacement = True
+angle_distribution = uniform [0, 2*pi)
+transform_op_eigenvalues = [-1, 0, 1]
+fit_iterations = 0 through 4
+fit_intercept_constrained_to_zero = True
+predicted_growth_factor = 11.0
+bootstrap_samples = 5000
+bootstrap_seed = 1
+confidence_level_percent = 95
+term_count_excludes_identity = True
+generator_indices_are_zero_based = True
+
+RESULT SUMMARY
+number_of_available_generators = 378
+initial_nonidentity_term_count = 184
+symmetry_allowed_nonidentity_maximum = 16511
+geometric_mean_growth_factor = 2.9474616816219337
+median_growth_factor = 3.0146963499241268
+growth_factor_ci_lower = 2.7454551675726853
+growth_factor_ci_upper = 3.0949940720272591
+
+SOFTWARE
+python = 3.9.15
+numpy = 1.23.3
+matplotlib = 3.6.2
+scipy = 1.9.3
+openfermion = 1.5.1
+openfermionpyscf = 0.5
+pyscf = 2.1.1
+
+FILES
+generators = generators.json
+term_counts_and_transformations = term_counts.csv
+plot = term_growth_fit.pdf
+molecular_data = molecule.hdf5

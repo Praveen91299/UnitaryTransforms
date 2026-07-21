@@ -1,0 +1,13 @@
+Date: July 20, 2026
+Number of qubits: 8
+Number of available generators: 378
+Initial non-identity terms: 184
+Seed=0
+Parity violations: 0
+Reality violations: 0
+Symmetry-allowed non-identity maximum: 16511
+Number of trials: 10
+Geometric-mean fitted growth factor: 2.947
+Median fitted growth factor: 3.015
+Growth-factor interquartile range: [2.936, 3.122]
+95% bootstrap confidence interval: [2.745, 3.095]
